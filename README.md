@@ -1,6 +1,6 @@
 # AP2 Registry
 
-Intent Mandate registry for AP2-compliant agent commerce, backing the Primer Agent Manifold.
+Intent Mandate registry for AP2-compliant agent commerce, backing the Primer Agent Manifold, MultiClaw, and Vault.
 
 Live at **[ap2.primer.systems](https://ap2.primer.systems)**.
 
