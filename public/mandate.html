@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intent Mandate | AP2 Registry</title>
+  <meta name="description" content="View and verify Intent Mandate for agent commerce">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    /* Mandate-specific styles */
+    .mandate-header { margin-bottom: 24px; }
+    .mandate-type {
+      color: var(--lime-dim);
+      font-size: 11px;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+    }
+    .mandate-title {
+      font-size: 18px;
+      font-weight: 400;
+      color: var(--lime);
+      margin-bottom: 4px;
+    }
+    .mandate-id {
+      color: var(--white-dim);
+      font-size: 11px;
+      word-break: break-all;
+    }
+
+    .sig-status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 2px;
+      font-size: 11px;
+      font-weight: 600;
+      margin: 16px 0;
+    }
+    .sig-status.signed { background: var(--lime); color: var(--black); }
+    .sig-status.verified { background: var(--lime); color: var(--black); }
+    .sig-status.invalid { background: var(--rust); color: var(--white); }
+    .sig-status.unsigned { background: var(--charcoal); color: var(--white); }
+    .sig-status.verifying { background: var(--charcoal); color: var(--white); animation: pulse 1.5s infinite; }
+
+    .limits-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .limit-box {
+      background: var(--black);
+      border: 1px solid var(--charcoal);
+      padding: 12px;
+      text-align: center;
+    }
+    .limit-value {
+      color: var(--lime);
+      font-size: 18px;
+      font-weight: 500;
+    }
+    .limit-label {
+      color: var(--white-dim);
+      font-size: 10px;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .networks {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .network-badge {
+      background: rgba(186,234,42,0.1);
+      border: 1px solid var(--lime-dim);
+      color: var(--lime);
+      padding: 4px 10px;
+      font-size: 11px;
+    }
+
+    .domains-list { font-size: 12px; color: var(--white-dim); }
+    .domains-list .allowed { color: var(--lime); }
+    .domains-list .blocked { color: var(--rust); }
+
+    .json-toggle {
+      background: transparent;
+      border: 1px solid var(--charcoal);
+      color: var(--white-dim);
+      padding: 8px 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      cursor: pointer;
+      margin-top: 16px;
+      transition: all 0.15s ease;
+    }
+    .json-toggle:hover { border-color: var(--lime); color: var(--lime); }
+    .json-view {
+      display: none;
+      background: var(--black);
+      border: 1px solid var(--charcoal);
+      padding: 16px;
+      margin-top: 16px;
+      overflow-x: auto;
+      font-size: 11px;
+    }
+    .json-view.show { display: block; }
+    .json-view code { color: var(--lime); }
+
+    .loading, .error-box { text-align: center; padding: 60px 20px; }
+    .loading { color: var(--white-dim); }
+    .error-box { color: var(--rust); }
+    .error-code { color: var(--charcoal); margin-top: 8px; font-size: 11px; }
+
+    .field { margin-bottom: 10px; font-size: 12px; }
+    .field .label { color: var(--white-dim); }
+    .field code { color: var(--lime); font-size: 11px; }
+
+    @media (max-width: 600px) {
+      .limits-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container flicker">
+    <header class="header">
+      <a href="https://primer.systems" class="logo">
+        <img src="/lockup_green.png" alt="Primer">
+      </a>
+      <nav class="nav">
+        <a href="/">REGISTRY</a>
+        <a href="https://primer.systems" class="nav-cta">HOME</a>
+      </nav>
+    </header>
+
+    <main>
+      <div id="loading" class="loading">Loading mandate...</div>
+      <div id="error" class="error-box" style="display:none;">
+        <div id="error-message">Mandate not found</div>
+        <div class="error-code" id="error-code"></div>
+      </div>
+      <div id="content" style="display:none;"></div>
+    </main>
+
+    <footer class="footer">
+      <span>&copy; 2025 Primer Systems</span>
+      <span class="footer-email">dev@primer.systems</span>
+      <div class="footer-links">
+        <a href="https://x.com/primer_systems" target="_blank" rel="noreferrer">X</a>
+        <a href="https://t.me/primer_HQ" target="_blank" rel="noreferrer">TG</a>
+        <a href="https://github.com/primer-systems" target="_blank" rel="noreferrer">GIT</a>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ethers.js for signature verification, vendored to satisfy script-src 'self' -->
+  <script src="/js/ethers.min.js"></script>
+  <script>
+    const API_BASE = '/api/mandates';
+
+    // Create canonical JSON matching Python's json.dumps(separators=(',', ':'), sort_keys=True)
+    function canonicalJsonStringify(obj) {
+      if (obj === null) return 'null';
+      if (typeof obj === 'boolean') return obj ? 'true' : 'false';
+      if (typeof obj === 'number') return String(obj);
+      if (typeof obj === 'string') return JSON.stringify(obj);
+      if (Array.isArray(obj)) {
+        return '[' + obj.map(canonicalJsonStringify).join(',') + ']';
+      }
+      if (typeof obj === 'object') {
+        const keys = Object.keys(obj).sort();
+        const pairs = keys.map(k => JSON.stringify(k) + ':' + canonicalJsonStringify(obj[k]));
+        return '{' + pairs.join(',') + '}';
+      }
+      return String(obj);
+    }
+
+    // Verify Ethereum signature on mandate (EIP-191 format)
+    async function verifyMandateSignature(mandate) {
+      if (!mandate.signature?.value || !mandate.signature?.signer) {
+        return { verified: false, reason: 'No signature present' };
+      }
+
+      try {
+        // The signature covers the mandate without the signature block itself
+        const mandateForSigning = { ...mandate };
+        delete mandateForSigning.signature;
+
+        const mandateJson = canonicalJsonStringify(mandateForSigning);
+
+        // For EIP-191 signatures, ethers.verifyMessage handles the prefix internally
+        // It expects the original message string, not a hash
+        const recoveredAddress = ethers.verifyMessage(mandateJson, mandate.signature.value);
+
+        // Check if recovered address matches claimed signer
+        if (recoveredAddress.toLowerCase() === mandate.signature.signer.toLowerCase()) {
+          return { verified: true, recoveredAddress };
+        } else {
+          return {
+            verified: false,
+            reason: `Signer mismatch: claimed ${mandate.signature.signer}, recovered ${recoveredAddress}`
+          };
+        }
+      } catch (err) {
+        console.error('Signature verification error:', err);
+        return { verified: false, reason: err.message };
+      }
+    }
+
+    async function loadMandate() {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+      const agentId = params.get('agent_id');
+
+      if (!id && !agentId) {
+        showError('No mandate ID or agent ID provided', 'MISSING_QUERY');
+        return;
+      }
+
+      try {
+        const query = id ? `id=${id}` : `agent_id=${agentId}`;
+        const response = await fetch(`${API_BASE}?${query}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          showError(data.error || 'Failed to load mandate', data.code);
+          return;
+        }
+
+        // If we got an array (agent_id lookup), show the first one
+        const mandate = Array.isArray(data) ? data[0] : data;
+        if (!mandate) {
+          showError('No mandate found for this agent', 'NOT_FOUND');
+          return;
+        }
+
+        renderMandate(mandate);
+      } catch (err) {
+        showError('Failed to connect to registry', 'CONNECTION_ERROR');
+      }
+    }
+
+    function showError(message, code) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('error').style.display = 'block';
+      document.getElementById('error-message').textContent = message;
+      if (code) {
+        document.getElementById('error-code').textContent = code;
+      }
+    }
+
+    function formatMicro(micro) {
+      if (micro === null || micro === undefined) return 'Unlimited';
+      // Micro-USDC uses 6 decimals: 1_000_000 = $1.00
+      return '$' + (micro / 1_000_000).toFixed(2);
+    }
+
+    function formatAutoApprove(micro) {
+      if (micro === null || micro === undefined) return 'None';
+      return 'Below $' + (micro / 1_000_000).toFixed(2);
+    }
+
+    function formatNetwork(network) {
+      const names = {
+        'eip155:1187947933': 'SKALE Base',
+        'eip155:324705682': 'SKALE Base Sepolia',
+        'eip155:8453': 'Base',
+        'eip155:84532': 'Base Sepolia',
+        'eip155:1': 'Ethereum',
+        'eip155:42161': 'Arbitrum',
+        'eip155:10': 'Optimism',
+        'eip155:137': 'Polygon',
+        'eip155:11155111': 'Ethereum Sepolia'
+      };
+      return names[network] || escapeHtml(network);
+    }
+
+    // HTML escape to prevent XSS from mandate data
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      const div = document.createElement('div');
+      div.textContent = String(str);
+      return div.innerHTML;
+    }
+
+    function renderMandate(mandate) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('content').style.display = 'block';
+
+      const agent = mandate.agent || {};
+      const auth = mandate.authorization || {};
+      const limits = auth.limits || {};
+      const wallet = mandate.wallet || {};
+      const signature = mandate.signature;
+      const domains = auth.domains || {};
+
+      const isSigned = !!signature?.value;
+      const networks = auth.networks || [];
+
+      // Initial status - will be updated after verification
+      const initialStatusClass = isSigned ? 'verifying' : 'unsigned';
+      const initialStatusText = isSigned ? 'VERIFYING SIGNATURE...' : 'UNSIGNED';
+
+      document.getElementById('content').innerHTML = `
+        <div class="mandate-header">
+          <div class="mandate-type">INTENT MANDATE</div>
+          <div class="mandate-title">Agent ${escapeHtml(agent.id) || 'N/A'}</div>
+          <div class="mandate-id">ID: ${escapeHtml(mandate.id) || 'N/A'}</div>
+          <div class="sig-status ${initialStatusClass}" id="sig-status">
+            ${initialStatusText}
+          </div>
+          <div id="sig-detail" style="font-size:11px;color:var(--white-dim);margin-top:4px;"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <span class="num">[01]</span>
+            <span class="icon">^</span>
+            <span class="name">AGENT AUTHORIZATION</span>
+          </div>
+          <div class="panel-body">
+            <div class="field"><span class="label">Agent ID:</span> <code>${escapeHtml(agent.id) || 'N/A'}</code></div>
+            <div class="field"><span class="label">Auth Fingerprint:</span> <code>${agent.authKeyFingerprint ? escapeHtml(agent.authKeyFingerprint) : 'N/A'}</code></div>
+            <div class="field"><span class="label">Issued:</span> ${mandate.issuedAt ? new Date(mandate.issuedAt).toLocaleString() : 'N/A'}</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <span class="num">[02]</span>
+            <span class="icon">$</span>
+            <span class="name">SPENDING LIMITS</span>
+          </div>
+          <div class="panel-body">
+            <div class="limits-grid">
+              <div class="limit-box">
+                <div class="limit-label">Daily Limit</div>
+                <div class="limit-value">${formatMicro(limits.dailyLimit)}</div>
+              </div>
+              <div class="limit-box">
+                <div class="limit-label">Per Transaction</div>
+                <div class="limit-value">${formatMicro(limits.perRequestMax)}</div>
+              </div>
+              <div class="limit-box">
+                <div class="limit-label">Auto-Approve</div>
+                <div class="limit-value">${formatAutoApprove(limits.autoApproveBelow)}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <span class="num">[03]</span>
+            <span class="icon">#</span>
+            <span class="name">ALLOWED NETWORKS</span>
+          </div>
+          <div class="panel-body">
+            <div class="networks">
+              ${networks.length > 0
+                ? networks.map(n => `<span class="network-badge">${formatNetwork(n)}</span>`).join('')
+                : '<span style="color:var(--white-dim);">No networks specified</span>'
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <span class="num">[04]</span>
+            <span class="icon">*</span>
+            <span class="name">SIGNING WALLET</span>
+          </div>
+          <div class="panel-body">
+            <div class="field"><span class="label">Address:</span> <code>${escapeHtml(wallet.address) || 'N/A'}</code></div>
+            ${isSigned ? `
+            <div class="field"><span class="label">Signature Type:</span> ${escapeHtml(signature.type) || 'N/A'}</div>
+            <div class="field"><span class="label">Signer:</span> <code>${escapeHtml(signature.signer) || 'N/A'}</code></div>
+            ` : ''}
+          </div>
+        </div>
+
+        <button class="json-toggle" onclick="toggleJson()">Show Raw JSON</button>
+        <pre class="json-view" id="json-view"><code>${JSON.stringify(mandate, null, 2)}</code></pre>
+      `;
+
+      // Verify signature if present
+      if (isSigned) {
+        verifyMandateSignature(mandate).then(result => {
+          const statusEl = document.getElementById('sig-status');
+          const detailEl = document.getElementById('sig-detail');
+
+          if (result.verified) {
+            statusEl.className = 'sig-status verified';
+            statusEl.textContent = 'SIGNATURE VERIFIED';
+            detailEl.innerHTML = `Signed by: <code style="color:var(--lime);">${escapeHtml(result.recoveredAddress)}</code>`;
+          } else {
+            statusEl.className = 'sig-status invalid';
+            statusEl.textContent = 'SIGNATURE INVALID';
+            detailEl.textContent = result.reason || 'Verification failed';
+          }
+        });
+      }
+    }
+
+    function toggleJson() {
+      const view = document.getElementById('json-view');
+      view.classList.toggle('show');
+      document.querySelector('.json-toggle').textContent =
+        view.classList.contains('show') ? 'Hide Raw JSON' : 'Show Raw JSON';
+    }
+
+    // Load on page ready
+    loadMandate();
+  </script>
+</body>
+</html>

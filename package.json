@@ -1,0 +1,9 @@
+{ 
+  "name": "ap2-registry",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AP2 Intent Mandate Registry for Agent Commerce",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  }
+}

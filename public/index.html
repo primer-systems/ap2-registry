@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AP2 Registry | Primer</title>
+  <meta name="description" content="AP2 Registry - Intent Mandate Registry for AP2-compliant use of the Primer Agent Manifold.">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="container flicker">
+    <header class="header">
+      <a href="https://primer.systems" class="logo">
+        <img src="/lockup_green.png" alt="Primer">
+      </a>
+      <nav class="nav">
+        <a href="https://primer.systems" class="nav-cta">HOME</a>
+      </nav>
+    </header>
+
+    <main>
+      <div class="page-title">
+        <h1>AP2_REGISTRY</h1>
+        <p>Intent Mandate Registry for AP2-compliant use of the Primer <a href="https://github.com/primer-systems" target="_blank" rel="noreferrer" style="color: var(--lime);">Agent Manifold</a>.</p>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="num">[01]</span>
+          <span class="icon">^</span>
+          <span class="name">LOOKUP</span>
+        </div>
+        <div class="panel-body">
+          <p style="color: var(--white-dim); font-size: 11px; margin-bottom: 16px;">
+            Look up an Intent Mandate by agent ID or mandate ID
+          </p>
+          <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+            <input type="text" id="lookup-input" placeholder="Agent ID (e.g., ABC123) or mandate ID"
+              style="flex: 1; background: var(--black); border: 1px solid var(--charcoal); color: var(--lime); padding: 10px 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; outline: none;"
+              onfocus="this.style.borderColor='var(--lime-dim)'" onblur="this.style.borderColor='var(--charcoal)'">
+            <button onclick="doLookup()" style="background: var(--lime); border: 1px solid var(--lime); color: var(--black); padding: 10px 20px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; cursor: pointer;">
+              LOOKUP
+            </button>
+          </div>
+          <div id="lookup-result" style="display: none; font-size: 11px; padding: 10px; background: var(--black); border: 1px solid var(--charcoal);"></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="num">[02]</span>
+          <span class="icon">+</span>
+          <span class="name">ENDPOINTS</span>
+        </div>
+        <div class="panel-body">
+          <p style="color: var(--white-dim); font-size: 11px; margin-bottom: 12px;">Base URL: <code style="color: var(--lime);">https://ap2.primer.systems</code></p>
+          <table class="api-table">
+            <thead>
+              <tr>
+                <th>Endpoint</th>
+                <th>Method</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>/api/mandates?id={uuid}</code></td>
+                <td><span class="method-get">GET</span></td>
+                <td>Retrieve mandate by ID</td>
+              </tr>
+              <tr>
+                <td><code>/api/mandates?agent_id={id}</code></td>
+                <td><span class="method-get">GET</span></td>
+                <td>Retrieve mandates for an agent</td>
+              </tr>
+              <tr>
+                <td><code>/api/mandates</code></td>
+                <td><span class="method-post">POST</span></td>
+                <td>Store a new Intent Mandate</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="num">[03]</span>
+          <span class="icon">&gt;</span>
+          <span class="name">MANDATE VIEWER</span>
+        </div>
+        <div class="panel-body">
+          <p style="color: var(--white-dim); font-size: 11px; margin-bottom: 12px;">
+            View and verify Intent Mandates with cryptographic signature verification
+          </p>
+          <div class="code-block">
+            <pre><code>/mandate.html?id={uuid}
+/mandate.html?agent_id={id}</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <span class="num">[04]</span>
+          <span class="icon">?</span>
+          <span class="name">ABOUT</span>
+        </div>
+        <div class="panel-body" style="font-size: 11px; color: var(--white-dim); line-height: 1.7;">
+          <p style="margin-bottom: 12px;">
+            An <strong style="color: var(--lime);">Intent Mandate</strong> is a cryptographically signed document that authorizes an AI agent to make payments on behalf of a user within specified limits.
+          </p>
+          <p style="margin-bottom: 12px;">
+            Merchants can verify agent authorization before accepting payments, ensuring compliance with user-defined spending policies.
+          </p>
+          <p>
+            <a href="https://ap2-protocol.org/specification/" target="_blank" rel="noreferrer" style="color: var(--lime);">→ read more</a>
+          </p>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <span>&copy; 2025 Primer Systems</span>
+      <span class="footer-email">dev@primer.systems</span>
+      <div class="footer-links">
+        <a href="https://x.com/primer_systems" target="_blank" rel="noreferrer">X</a>
+        <a href="https://t.me/primer_HQ" target="_blank" rel="noreferrer">TG</a>
+        <a href="https://github.com/primer-systems" target="_blank" rel="noreferrer">GIT</a>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    // HTML escape to prevent XSS
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      const div = document.createElement('div');
+      div.textContent = String(str);
+      return div.innerHTML;
+    }
+
+    function doLookup() {
+      const input = document.getElementById('lookup-input').value.trim();
+      const result = document.getElementById('lookup-result');
+
+      if (!input) {
+        result.style.display = 'block';
+        result.style.borderColor = 'var(--rust)';
+        result.innerHTML = '<span style="color: var(--rust);">Please enter an agent ID or mandate ID</span>';
+        return;
+      }
+
+      // Determine if it's a mandate UUID or a short agent ID
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(input);
+      const param = isUuid ? `id=${input}` : `agent_id=${input}`;
+
+      result.style.display = 'block';
+      result.style.borderColor = 'var(--charcoal)';
+      result.innerHTML = '<span style="color: var(--white-dim);">Looking up...</span>';
+
+      fetch(`/api/mandates?${param}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.error) {
+            result.style.borderColor = 'var(--rust)';
+            result.innerHTML = `<span style="color: var(--rust);">${escapeHtml(data.error)}</span>`;
+          } else {
+            const mandate = Array.isArray(data) ? data[0] : data;
+            if (!mandate) {
+              result.style.borderColor = 'var(--rust)';
+              result.innerHTML = '<span style="color: var(--rust);">No mandate found</span>';
+            } else {
+              result.style.borderColor = 'var(--lime-dim)';
+              const viewUrl = `/mandate.html?id=${encodeURIComponent(mandate.id)}`;
+              const limits = mandate.authorization?.limits || {};
+              result.innerHTML = `
+                <span style="color: var(--lime);">Found:</span> Agent ${escapeHtml(mandate.agent?.code) || 'N/A'}<br>
+                <span style="color: var(--white-dim);">Daily Limit:</span> $${((limits.dailyLimit || 0) / 1000000).toFixed(2)}<br>
+                <a href="${viewUrl}" style="color: var(--lime); margin-top: 8px; display: inline-block;">View full mandate &rarr;</a>
+              `;
+            }
+          }
+        })
+        .catch(err => {
+          result.style.borderColor = 'var(--rust)';
+          result.innerHTML = `<span style="color: var(--rust);">Error: ${escapeHtml(err.message)}</span>`;
+        });
+    }
+
+    // Allow Enter key to trigger lookup
+    document.getElementById('lookup-input').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') doLookup();
+    });
+  </script>
+</body>
+</html>
